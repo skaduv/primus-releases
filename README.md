@@ -22,8 +22,6 @@
   <a href="https://github.com/skaduv/primus-releases/releases/latest"><strong>下载最新版本 →</strong></a>
 </p>
 
-> [!NOTE]
-> 上方下载入口始终指向当前标记为 **Latest** 的正式版本。发布新版本后会自动更新，无需修改本 README。
 
 ## 关于 Primus
 
@@ -57,14 +55,10 @@
 
 ## 系统要求
 
-- Windows 11
+- Windows 11/10
 - x64 或 ARM64
 - 可访问互联网，用于 Agent 服务和版本更新
 
-## 安全提示
-
-> [!WARNING]
-> 当前安装包尚未进行代码签名。首次运行时 Windows SmartScreen 可能会拦截，请确认文件来自本仓库后，点击「更多信息」→「仍要运行」。
 
 请只从本仓库的 Releases 页面下载安装包。每个版本的发布说明都会提供安装包文件的 SHA-256，可用于校验下载是否完整：
 
