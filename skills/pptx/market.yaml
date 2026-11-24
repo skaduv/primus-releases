@@ -1,0 +1,7 @@
+title: { zh: PowerPoint 演示文稿, en: PowerPoint Presentations }
+description:
+  zh: 阅读、创建和编辑 .pptx 幻灯片，支持现有模板和主题。
+  en: Read, create, and edit .pptx presentations, including existing templates and themes.
+category: office
+version: 1.0.0
+icon: icon.png

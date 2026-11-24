@@ -68,9 +68,10 @@ Get-FileHash .\<下载的文件名> -Algorithm SHA256
 
 ## 仓库说明
 
-本仓库是乾元 Primus 的**官方发布仓库**，用于分发 Windows 安装包、发布说明与应用自动更新清单。
+本仓库是乾元 Primus 的**官方发布仓库**，用于分发 Windows 安装包、发布说明与应用自动更新清单，也是官方能力市场的资源上游。
 
 - [下载最新版本](https://github.com/skaduv/primus-releases/releases/latest)
 - [浏览全部版本](https://github.com/skaduv/primus-releases/releases)
+- 能力市场资源：[Skills](skills/)、[MCP](mcp/)、[插件](plugins/)；客户端从 [Market Release](https://github.com/skaduv/primus-releases/releases/tag/market) 读取已发布索引和安装包。
 
 软件版权由作者保留。

@@ -1,0 +1,7 @@
+title: { zh: 技能创建器, en: Skill Creator }
+description:
+  zh: 编写、改进和打包技能。部分自动化评测需要额外环境。
+  en: Create, refine, and package skills. Some automated evaluations require additional tooling.
+category: dev
+version: 1.0.0
+icon: icon.png

@@ -1,0 +1,7 @@
+title: { zh: PDF 文档, en: PDF Documents }
+description:
+  zh: 提取文本与表格、合并拆分页面、填写表单或识别扫描件。
+  en: Extract text and tables, merge or split pages, fill forms, or run OCR on scans.
+category: office
+version: 1.0.0
+icon: icon.png
