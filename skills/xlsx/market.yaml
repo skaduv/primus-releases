@@ -1,0 +1,7 @@
+title: { zh: Excel 电子表格, en: Excel Spreadsheets }
+description:
+  zh: 创建和编辑电子表格，整理数据、编写公式并生成图表。
+  en: Create and edit spreadsheets, organize data, write formulas, and build charts.
+category: data
+version: 1.0.0
+icon: icon.png
