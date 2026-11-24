@@ -74,4 +74,6 @@ Get-FileHash .\<下载的文件名> -Algorithm SHA256
 - [浏览全部版本](https://github.com/skaduv/primus-releases/releases)
 - 能力市场资源：[Skills](skills/)、[MCP](mcp/)、[插件](plugins/)；客户端从 [Market Release](https://github.com/skaduv/primus-releases/releases/tag/market) 读取已发布索引和安装包。
 
+资源变更在 `dev` 提交并经 PR 合入 `main`。本仓的 Market 工作流用锁定的 Primus 构建工具发布，保留未下架条目的旧版本，不影响 Windows 安装包或更新清单。
+
 软件版权由作者保留。
