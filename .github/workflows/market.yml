@@ -1,0 +1,300 @@
+# 能力市场发布：本仓 main 上的 skills/、mcp/、plugins/ 是资源上游；使用锁定的 Primus 构建工具生成索引和安装包。
+# 发布到本仓固定的非 Latest 预发布 market，客户端的下载地址不变。仅发布作业可用本仓 GITHUB_TOKEN 写 Release。
+# - 先下载 Release 上现有的 index.json 交给生成器：已发布的旧版本保留在索引里（供安装旧版本与回退），同名同版本内容
+#   变了、或版本号降低时构建失败（避免已安装用户的 SHA-256 对不上）。
+# - 上传：同名附件 --clobber 覆盖（index.json 最后上传，先让它引用的安装包就位）；上传失败时用旧 index.json 恢复。
+#   全部成功后删除不在保留清单中的旧附件（下架的条目、不再引用的图标与 README）。
+# - MCP（M2）：mcp 作业在 x64（windows-2025）与 ARM64（windows-11-arm）运行器上构建 Agent Core 与内置运行时
+#   （scripts/build-core.mjs），用 scripts/market-mcp.mjs prepare 按架构预装依赖、smoke 实测能启动并列出工具
+#   （直接按 MCP stdio 协议，再用 Core 命令行 mcp list --json），产物作为工件交给 publish 作业的生成器（--prebuilt）。
+#   冒烟按与发布同一次的计划（带上已发布索引 --published）：新包解压生成器输出的 ZIP 后冒烟，并把通过的文件名与
+#   SHA-256 记进工件（smoked-<arch>.json），publish 只发布与之一致的字节（--smoked）；沿用的已发布安装包同样下载、
+#   核对 SHA-256、解压后做相同的冒烟。
+#   冒烟失败则不发布。插件的加载检查在 M3 加入。
+name: Market
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "skills/**"
+      - "mcp/**"
+      - "plugins/**"
+      - ".gitattributes"
+      - ".github/workflows/market.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# 同一时刻只发布一次：两次运行交错“读旧索引 → 上传”会丢版本记录
+concurrency:
+  group: market-publish
+  cancel-in-progress: false
+
+env:
+  MARKET_REPO: skaduv/primus-releases
+  MARKET_TAG: market
+  # 与生产客户端已合入的 M2 市场协议一致。升级时单独审核该版本的构建工具。
+  MARKET_TOOLING_REF: da4584b7bb18d6b160bf1dc1b62a63355dfc2eba
+
+jobs:
+  plan:
+    name: 校验市场资源目录
+    if: github.repository == 'skaduv/primus-releases' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      has_mcp: ${{ steps.catalog.outputs.has_mcp }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: 确认三个源目录存在
+        id: catalog
+        run: |
+          set -euo pipefail
+          for dir in skills mcp plugins; do
+            if [[ ! -d "$dir" || -L "$dir" ]]; then
+              echo "::error::市场源目录缺失或不是普通目录：$dir"
+              exit 1
+            fi
+          done
+          if [[ -n "$(find mcp -mindepth 1 -maxdepth 1 -type d -print -quit)" ]]; then
+            echo "has_mcp=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_mcp=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  mcp:
+    name: MCP 预装依赖与冒烟（${{ matrix.arch }}）
+    needs: plan
+    if: needs.plan.outputs.has_mcp == 'true'
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - arch: x64
+            runner: windows-2025
+          - arch: arm64
+            runner: windows-11-arm
+    runs-on: ${{ matrix.runner }}
+    # windows-11-arm 运行器偶发失联：作业级上限才能结束卡住的步骤（与 ci.yml 相同）
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          repository: skaduv/primus
+          ref: ${{ env.MARKET_TOOLING_REF }}
+          persist-credentials: false
+
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          path: market-source
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v6.1.0
+
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm exec vitest run --project node scripts/market-mcp.test.ts
+
+      # 与发布版相同的内置运行时（node.exe 与 Python，哈希锁定）与 Agent Core，用于装依赖与冒烟
+      - name: 构建 Agent Core 与内置运行时（win-${{ matrix.arch }}）
+        run: node scripts/build-core.mjs --platform win-${{ matrix.arch }}
+
+      - name: 预装依赖
+        run: node scripts/market-mcp.mjs prepare --root market-source --arch ${{ matrix.arch }} --runtime dist/runtime --out market-prebuilt
+
+      # 新预装的副本与发布时会沿用的已发布安装包都要通过（--published：已发布 Release 的公开下载地址）
+      - name: 冒烟（启动、列出工具；Core mcp list --json）
+        run: node scripts/market-mcp.mjs smoke --root market-source --arch ${{ matrix.arch }} --runtime dist/runtime --prebuilt market-prebuilt --core dist/agent-core --published https://github.com/${{ env.MARKET_REPO }}/releases/download/${{ env.MARKET_TAG }}
+
+      # 没有要预装的条目时也上传（只有这个说明文件）：publish 按架构名逐个下载到固定目录，缺工件即失败
+      - name: 标记预装副本
+        shell: bash
+        run: |
+          mkdir -p "market-prebuilt/${{ matrix.arch }}"
+          echo "market-mcp prepare ${{ matrix.arch }}" > "market-prebuilt/${{ matrix.arch }}/prebuilt-${{ matrix.arch }}.txt"
+
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: market-prebuilt-${{ matrix.arch }}
+          path: market-prebuilt/${{ matrix.arch }}
+          # 依赖里 . 开头的运行时数据（如 node_modules/x/.data）要一起进工件；生成器另行排除 .bin
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 3
+
+  publish:
+    name: 构建并发布能力市场
+    # 只有空的 MCP 清单才允许跳过冒烟；源码校验或 MCP 作业失败时不写 Release。
+    if: >-
+      ${{ !cancelled() && needs.plan.result == 'success' &&
+          (needs.mcp.result == 'success' ||
+           (needs.plan.outputs.has_mcp == 'false' && needs.mcp.result == 'skipped')) }}
+    needs: [plan, mcp]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          repository: skaduv/primus
+          ref: ${{ env.MARKET_TOOLING_REF }}
+          persist-credentials: false
+
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          path: market-source
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v6.1.0 # 版本取自 package.json 的 packageManager
+
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # 生成器与索引校验的单测先过，再碰公开仓
+      - run: pnpm exec vitest run --project node scripts/build-market.test.ts packages/protocol/src/market.test.ts
+
+      # mcp 作业按架构预装好依赖、冒烟通过的副本（market-prebuilt/<arch>/<名>/）：按工件名逐个下载到固定目录
+      # （按 pattern 下载时只匹配到一个工件会直接解到 path 根下，布局不确定）；工件总会上传，缺了就是失败
+      - if: needs.plan.outputs.has_mcp == 'true'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: market-prebuilt-x64
+          path: market-prebuilt/x64
+
+      - if: needs.plan.outputs.has_mcp == 'true'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: market-prebuilt-arm64
+          path: market-prebuilt/arm64
+
+      - name: 读取已发布的索引
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ env.MARKET_REPO }}
+        run: |
+          set -euo pipefail
+          mkdir -p market-old
+          # 只有明确“Release 不存在”才按首次发布处理；网络等其他错误一律停止，
+          # 否则会在没有旧索引的情况下覆盖已发布的市场、删掉旧版本附件
+          if ! gh release view "$MARKET_TAG" --json id >/dev/null 2>market-old/view.err; then
+            if grep -qi "release not found" market-old/view.err; then
+              echo "Release ${MARKET_TAG} 还不存在：首次发布"
+              exit 0
+            fi
+            cat market-old/view.err >&2
+            echo "::error::查询 Release ${MARKET_TAG} 失败，停止发布"
+            exit 1
+          fi
+          # 先单独查询附件列表：查询失败就停止发布，不能当成“没有旧索引”而丢掉已发布的版本记录
+          gh release view "$MARKET_TAG" --json assets --jq '.assets[].name' > market-old/assets.txt
+          if grep -Fxq index.json market-old/assets.txt; then
+            gh release download "$MARKET_TAG" --pattern index.json --dir market-old
+          fi
+
+      - name: 生成索引与安装包
+        env:
+          HAS_MCP: ${{ needs.plan.outputs.has_mcp }}
+        run: |
+          set -euo pipefail
+          # --smoked：新 MCP 包必须正是 mcp 作业冒烟过的字节（market-prebuilt/<arch>/smoked-<arch>.json）
+          args=(--root market-source --out dist/market --commit "$GITHUB_SHA" --keep-list market-keep.txt
+                --generated-at "$(git -C market-source log -1 --format=%ct "$GITHUB_SHA")")
+          if [[ "$HAS_MCP" == true ]]; then args+=(--prebuilt market-prebuilt --smoked market-prebuilt); fi
+          if [[ -f market-old/index.json ]]; then args+=(--previous market-old/index.json); fi
+          node scripts/build-market.mjs "${args[@]}"
+          # 保留清单里引用、但本次没有输出的附件（旧版本安装包）必须已在 Release 上
+          while IFS= read -r name; do
+            [[ -z "$name" || -f "dist/market/$name" ]] && continue
+            if ! grep -Fxq -- "$name" market-old/assets.txt 2>/dev/null; then
+              echo "::error::索引引用的旧附件 ${name} 不在 Release 上"
+              exit 1
+            fi
+          done < market-keep.txt
+
+      - name: 发布到 ${{ env.MARKET_REPO }} 的 Release ${{ env.MARKET_TAG }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ env.MARKET_REPO }}
+        run: |
+          set -euo pipefail
+          retry() {
+            local i
+            for i in 1 2 3; do
+              "$@" && return 0
+              echo "::warning::第 ${i} 次失败：$*" >&2
+              sleep $((i * 10))
+            done
+            return 1
+          }
+          if gh release view "$MARKET_TAG" --json id >/dev/null 2>&1; then
+            retry gh release edit "$MARKET_TAG" --prerelease --latest=false
+          else
+            gh release create "$MARKET_TAG" \
+              --target main \
+              --title "乾元 Primus 能力市场" \
+              --notes "能力市场的索引（index.json）、安装包、图标与说明，由 market 工作流自动维护，请勿手动修改或删除。" \
+              --prerelease --latest=false
+          fi
+          # 安装包、图标与 README 先上传，index.json 最后：客户端读到新索引时，它引用的附件都已就位
+          mapfile -t assets < <(find dist/market -maxdepth 1 -type f ! -name index.json -printf '%p\n' | LC_ALL=C sort)
+          if [[ ${#assets[@]} -gt 0 ]]; then
+            retry gh release upload "$MARKET_TAG" "${assets[@]}" --clobber \
+              || { echo "::error::上传安装包失败，索引未更新"; exit 1; }
+          fi
+          if ! gh release upload "$MARKET_TAG" dist/market/index.json --clobber; then
+            # --clobber 会先删旧附件：上传失败时放回旧索引，客户端继续读到一致的旧版本
+            echo "::error::上传 index.json 失败，尝试恢复旧索引"
+            if [[ -f market-old/index.json ]]; then
+              gh release upload "$MARKET_TAG" market-old/index.json --clobber || echo "::error::恢复旧索引也失败了，请手动检查 Release ${MARKET_TAG}"
+            fi
+            exit 1
+          fi
+          # 新索引就位后删除不在保留清单中的旧附件（下架的条目、不再引用的图标与 README）
+          gh release view "$MARKET_TAG" --json assets --jq '.assets[].name' | while IFS= read -r old; do
+            [[ -z "$old" ]] && continue
+            if ! grep -Fxq -- "$old" market-keep.txt; then
+              echo "删除不在清单中的旧附件：$old"
+              retry gh release delete-asset "$MARKET_TAG" "$old" --yes \
+                || { echo "::error::删除旧附件 $old 失败"; exit 1; }
+            fi
+          done
+
+      - name: 核对发布结果
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ env.MARKET_REPO }}
+        run: |
+          set -euo pipefail
+          state="$(gh release view "$MARKET_TAG" --json isDraft,isPrerelease --jq '"\(.isDraft) \(.isPrerelease)"')"
+          [[ "$state" == "false true" ]] || { echo "::error::Release ${MARKET_TAG} 状态不符（draft prerelease = ${state}）"; exit 1; }
+          actual="$(gh release view "$MARKET_TAG" --json assets --jq '.assets[].name' | LC_ALL=C sort)"
+          expected="$(LC_ALL=C sort market-keep.txt | sed '/^$/d')"
+          [[ "$actual" == "$expected" ]] || { echo "::error::Release 附件与保留清单不符："; echo "$actual"; exit 1; }
+          mkdir -p market-check
+          gh release download "$MARKET_TAG" --pattern index.json --dir market-check --clobber
+          cmp market-check/index.json dist/market/index.json || { echo "::error::Release 上的 index.json 与本次生成的不一致"; exit 1; }
+          # 逐个核对本次上传的安装包 SHA-256
+          jq -r '.entries[].versions[] | ([.package] + [(.packages // {})[]]) | .[] | select(. != null) | "\(.sha256)  \(.file)"' dist/market/index.json > market-sums.txt
+          while read -r sum file; do
+            [[ -f "dist/market/$file" ]] || continue
+            echo "$sum  dist/market/$file" | sha256sum --check --strict --quiet
+          done < market-sums.txt
+          echo "✓ ${MARKET_REPO} ${MARKET_TAG}：$(jq '.entries | length' dist/market/index.json) 个条目"
