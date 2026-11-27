@@ -1,0 +1,45 @@
+title: { zh: Kubernetes, en: Kubernetes }
+description:
+  zh: 通过 kubectl 与 Helm 管理 Kubernetes 集群资源、查看日志、端口转发及排障诊断。
+  en: Manage Kubernetes clusters via kubectl and Helm, inspect logs, forward ports, and diagnose workloads.
+category: dev
+version: 4.2.3
+engines:
+  primus: ">=0.1.7"
+changelog:
+  zh: 基于 Flux159/mcp-server-kubernetes v4.2.3 精简核心 stdio MCP 并首次上架。
+  en: Initial release based on Flux159/mcp-server-kubernetes v4.2.3 (core stdio MCP).
+icon: icon.png
+runtime: node
+entry: index.mjs
+env:
+  KUBECONFIG_PATH:
+    label: { zh: Kubeconfig 文件路径, en: Kubeconfig Path }
+    description:
+      zh: 自定义 kubeconfig 文件路径；留空时默认使用系统 KUBECONFIG 或 ~/.kube/config。
+      en: Custom kubeconfig file path; defaults to KUBECONFIG or ~/.kube/config when left empty.
+    required: false
+  ALLOW_ONLY_READONLY_TOOLS:
+    label: { zh: 只读模式, en: Read-Only Mode }
+    description:
+      zh: 填写 true 时仅启用只读查询与诊断工具，禁用所有写入与变更操作。
+      en: Set to true to enable only read-only tools and disable all write operations.
+    required: false
+  ALLOW_ONLY_NON_DESTRUCTIVE_TOOLS:
+    label: { zh: 非破坏性模式, en: Non-Destructive Mode }
+    description:
+      zh: 填写 true 时禁用删除、卸载 Helm、节点排空、容器内执行与通用 kubectl 等高危工具。
+      en: Set to true to disable destructive tools including delete, Helm uninstall, node drain, exec, and generic kubectl.
+    required: false
+  MASK_SECRETS:
+    label: { zh: Secret 脱敏, en: Mask Secrets }
+    description:
+      zh: 默认开启；填写 false 可关闭 kubectl_get 查询 Secret 时的自动脱敏。
+      en: Enabled by default; set to false to disable masking of Secret values in kubectl_get.
+    required: false
+  SPAWN_MAX_BUFFER:
+    label: { zh: 命令输出缓冲区上限（字节）, en: Command Output Max Buffer (bytes) }
+    description:
+      zh: 大型集群遇到输出缓冲区不足时可调大（如 5242880 表示 5 MiB）；留空使用默认值。
+      en: Increase for large clusters if output buffer is exceeded (e.g. 5242880 for 5 MiB); defaults to ~1 MiB.
+    required: false
