@@ -15,7 +15,7 @@ mcp/
       └─ requirements.txt                    Python 有依赖时（每行 包名==版本）
 ```
 
-当前没有上架 MCP。市场（M2）支持带内置运行时的**本地 stdio** 服务器；远程（http）服务器随插件在 M3 加入。
+当前上架 Kubernetes（`kubernetes`），核心 stdio MCP 整理自 [Flux159/mcp-server-kubernetes](https://github.com/Flux159/mcp-server-kubernetes) v4.2.3，安装包内随附 MIT `LICENSE`。市场（M2）支持带内置运行时的**本地 stdio** 服务器；远程（http）服务器随插件在 M3 加入。
 
 ## 依赖与按架构出包
 
