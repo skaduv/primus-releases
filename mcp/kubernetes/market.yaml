@@ -1,45 +1,34 @@
 title: { zh: Kubernetes, en: Kubernetes }
 description:
-  zh: 通过 kubectl 与 Helm 管理 Kubernetes 集群资源、查看日志、端口转发及排障诊断。
-  en: Manage Kubernetes clusters via kubectl and Helm, inspect logs, forward ports, and diagnose workloads.
+  zh: 管理 Kubernetes 集群资源、日志、端口转发与 Helm。
+  en: Manage Kubernetes clusters, logs, port-forwarding, and Helm.
 category: dev
-version: 4.2.3
+version: 4.2.4
 engines:
   primus: ">=0.1.7"
 changelog:
-  zh: 基于 Flux159/mcp-server-kubernetes v4.2.3 精简核心 stdio MCP 并首次上架。
-  en: Initial release based on Flux159/mcp-server-kubernetes v4.2.3 (core stdio MCP).
+  zh: 精简配置项，仅保留集群连接信息与简明说明。
+  en: Simplified configuration to connection settings only and trimmed documentation.
 icon: icon.png
 runtime: node
 entry: index.mjs
 env:
   KUBECONFIG_PATH:
-    label: { zh: Kubeconfig 文件路径, en: Kubeconfig Path }
+    label: { zh: Kubeconfig 路径, en: Kubeconfig Path }
     description:
-      zh: 自定义 kubeconfig 文件路径；留空时默认使用系统 KUBECONFIG 或 ~/.kube/config。
-      en: Custom kubeconfig file path; defaults to KUBECONFIG or ~/.kube/config when left empty.
+      zh: 留空默认读取 ~/.kube/config
+      en: Defaults to ~/.kube/config
     required: false
-  ALLOW_ONLY_READONLY_TOOLS:
-    label: { zh: 只读模式, en: Read-Only Mode }
+  K8S_SERVER:
+    label: { zh: 集群地址, en: API Server URL }
     description:
-      zh: 填写 true 时仅启用只读查询与诊断工具，禁用所有写入与变更操作。
-      en: Set to true to enable only read-only tools and disable all write operations.
+      zh: 不使用 kubeconfig 时填写，如 https://host:6443
+      en: Optional without kubeconfig, e.g. https://host:6443
     required: false
-  ALLOW_ONLY_NON_DESTRUCTIVE_TOOLS:
-    label: { zh: 非破坏性模式, en: Non-Destructive Mode }
+  K8S_TOKEN:
+    label: { zh: 访问 Token, en: Bearer Token }
     description:
-      zh: 填写 true 时禁用所有标记为破坏性或覆写变更的工具（仅保留只读、新建与端口转发工具）。
-      en: Set to true to disable all tools marked as destructive/mutating (keeping read-only, create, and port-forward tools).
+      zh: 配合集群地址使用
+      en: Used with API Server URL
     required: false
-  MASK_SECRETS:
-    label: { zh: Secret 脱敏, en: Mask Secrets }
-    description:
-      zh: 默认开启；填写 false 可关闭 kubectl_get 查询 Secret 时的自动脱敏。
-      en: Enabled by default; set to false to disable masking of Secret values in kubectl_get.
-    required: false
-  SPAWN_MAX_BUFFER:
-    label: { zh: 命令输出缓冲区上限（字节）, en: Command Output Max Buffer (bytes) }
-    description:
-      zh: 大型集群遇到输出缓冲区不足时可调大（如 5242880 表示 5 MiB）；留空使用默认值。
-      en: Increase for large clusters if output buffer is exceeded (e.g. 5242880 for 5 MiB); defaults to ~1 MiB.
-    required: false
+    secret: true
