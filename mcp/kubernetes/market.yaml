@@ -7,28 +7,25 @@ version: 4.2.4
 engines:
   primus: ">=0.1.7"
 changelog:
-  zh: 精简配置项，仅保留集群连接信息与简明说明。
-  en: Simplified configuration to connection settings only and trimmed documentation.
+  zh: 精简为连接地址、账号、密码三项配置，并缩减说明文字。
+  en: Simplified settings to cluster address, username, and password/token, and trimmed documentation.
 icon: icon.png
 runtime: node
 entry: index.mjs
 env:
-  KUBECONFIG_PATH:
-    label: { zh: Kubeconfig 路径, en: Kubeconfig Path }
+  K8S_SERVER:
+    label: { zh: 集群地址, en: Cluster Address }
     description:
       zh: 留空默认读取 ~/.kube/config
-      en: Defaults to ~/.kube/config
+      en: Leave empty to use ~/.kube/config
     required: false
-  K8S_SERVER:
-    label: { zh: 集群地址, en: API Server URL }
-    description:
-      zh: 不使用 kubeconfig 时填写，如 https://host:6443
-      en: Optional without kubeconfig, e.g. https://host:6443
+  K8S_USERNAME:
+    label: { zh: 账号, en: Username }
     required: false
-  K8S_TOKEN:
-    label: { zh: 访问 Token, en: Bearer Token }
+  K8S_PASSWORD:
+    label: { zh: 密码 / Token, en: Password / Token }
     description:
-      zh: 配合集群地址使用
-      en: Used with API Server URL
+      zh: 留空账号时可作为 Token 使用
+      en: Used as Bearer Token when username is empty
     required: false
     secret: true
