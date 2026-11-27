@@ -28,8 +28,8 @@ env:
   ALLOW_ONLY_NON_DESTRUCTIVE_TOOLS:
     label: { zh: 非破坏性模式, en: Non-Destructive Mode }
     description:
-      zh: 填写 true 时禁用删除、卸载 Helm、节点排空、容器内执行与通用 kubectl 等高危工具。
-      en: Set to true to disable destructive tools including delete, Helm uninstall, node drain, exec, and generic kubectl.
+      zh: 填写 true 时禁用所有标记为破坏性或覆写变更的工具（仅保留只读、新建与端口转发工具）。
+      en: Set to true to disable all tools marked as destructive/mutating (keeping read-only, create, and port-forward tools).
     required: false
   MASK_SECRETS:
     label: { zh: Secret 脱敏, en: Mask Secrets }

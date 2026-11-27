@@ -55,6 +55,6 @@
 |---|---|
 | `KUBECONFIG_PATH` | 自定义 kubeconfig 文件路径；留空时使用系统 `KUBECONFIG` 或 `~/.kube/config` |
 | `ALLOW_ONLY_READONLY_TOOLS` | 设为 `true` 时仅暴露只读查询与诊断工具 |
-| `ALLOW_ONLY_NON_DESTRUCTIVE_TOOLS` | 设为 `true` 时禁用删除、卸载 Helm、节点排空、容器内执行与 `kubectl_generic` |
+| `ALLOW_ONLY_NON_DESTRUCTIVE_TOOLS` | 设为 `true` 时禁用所有标记为破坏性/覆写变更的工具（仅保留只读、新建与端口转发工具） |
 | `MASK_SECRETS` | 默认开启 Secret 输出脱敏；设为 `false` 关闭 |
 | `SPAWN_MAX_BUFFER` | `kubectl`/`helm` 输出缓冲区上限（字节），大型集群可设为 `5242880` |
